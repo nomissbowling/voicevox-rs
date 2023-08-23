@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.0")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
@@ -39,7 +39,7 @@ mod tests {
     let vvc = VVClient::new();
     let id = 3;
     let qs = vvc.query("ずんだもんなのだ。", id).unwrap();
-    let ps = vvc.get_phrases(qs).unwrap();
+    let ps = vvc.phrases(&qs).unwrap();
     // println!("{:?}", ps);
     assert_eq!(ps.kana, "ズ'ンダモンナ/ノダ'");
   }
@@ -50,6 +50,7 @@ mod tests {
     let vvc = VVClient::new();
     let id = 3;
     let qs = vvc.query("ずんだもんなのだ。", id).unwrap();
+    let mut ps = vvc.phrases(&qs).unwrap();
     let dat = vvc.synth(qs, id).unwrap();
     println!("response: {}", dat.len()); // 69676 = 8 + 69668 (RIFF size)
     // println!("response: {}", String::from_utf8(dat).unwrap()); // if error
@@ -70,9 +71,12 @@ mod tests {
       0x00, 0x10, 0x01, 0x00]; // sub chunk size (+ WAVE head 0x24 = RIFF size)
       // ... wav data
     assert_eq!(dat[0..cmp.len()], cmp);
-    assert_eq!(vvc.speak(dat).unwrap(), ());
+    assert_eq!(vvc.speak(dat, 2).unwrap(), ());
+    // change speed to speak
+    ps.speedScale = 1.5;
+    let dat = vvc.synth(vvc.phrases_to_str(&ps).unwrap(), id).unwrap();
+    assert_eq!(vvc.speak(dat, 3).unwrap(), ());
   }
 }
 
 */
-

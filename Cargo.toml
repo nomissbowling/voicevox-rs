@@ -1,11 +1,11 @@
 [package]
 name = "voicevox-rs"
-version = "0.1.0" # change with html_root_url in lib.rs
+version = "0.2.0" # change with html_root_url in lib.rs
 edition = "2021"
 authors = ["nomissbowling <nomissbowling@yahoo.co.jp>"]
 
-description = "voicevox client library fpr Rust"
-keywords = ["voicevox", "voice", "vocoder", "audio", "rodio"]
+description = "voicevox client library for Rust"
+keywords = ["voicevox", "voice", "vocoder", "audio", "synthesizer"]
 categories = ["multimedia", "multimedia::audio", "simulation", "api-bindings"]
 license = "MIT"
 

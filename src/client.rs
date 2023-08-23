@@ -17,102 +17,110 @@ use serde::{Deserialize, Deserializer};
 /// json object inner Speaker
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Feat {
+  /// permitted_synthesis_morphing
   pub permitted_synthesis_morphing: String
 }
 
 /// json object inner Speaker
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Style {
+  /// id
   pub id: i32,
+  /// name
   pub name: String
 }
 
 /// json object Speaker
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Speaker {
+  /// name
   pub name: String,
+  /// speaker_uuid
   pub speaker_uuid: String,
+  /// styles
   pub styles: Vec<Style>,
+  /// supported_features
   pub supported_features: Feat,
+  /// version
   pub version: String
-}
-
-/// json object inner Phrase
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Mora {
-  #[serde(deserialize_with = "deserialize_null_str")]
-  pub consonant: String,
-  #[serde(deserialize_with = "deserialize_null_f64")]
-  pub consonant_length: f64,
-  pub pitch: f64,
-  pub text: String,
-  pub vowel: String,
-  pub vowel_length: f64
-}
-
-/// json null as String
-fn deserialize_null_str<'de, D>(deserializer: D) -> Result<String, D::Error>
-  where D: Deserializer<'de>
-{
-  // https://stackoverflow.com/questions/44205435/how-to-deserialize-a-json-file-which-contains-null-values-using-serde
-/*
-  let opt = Option::deserialize(deserializer)?;
-  Ok(opt.unwrap_or_default())
-*/
-  Deserialize::deserialize(deserializer).map(|x: Option<_>| {
-    x.unwrap_or("".to_string())
-  })
-}
-
-/// json null as 0.0f64
-fn deserialize_null_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
-  where D: Deserializer<'de>
-{
-  Deserialize::deserialize(deserializer).map(|x: Option<_>| {
-    x.unwrap_or(0.0f64)
-  })
-}
-
-/// json object inner Phrases
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Phrase {
-  pub accent: i32,
-  pub is_interrogative: bool,
-  pub moras: Vec<Mora>,
-  #[serde(deserialize_with = "deserialize_null")]
-  pub pause_mora: Option<String>
 }
 
 /// json null as Option
 fn deserialize_null<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
   where T: Default + Deserialize<'de>, D: Deserializer<'de>
 {
-  // https://komorinfo.com/blog/serde-option-deserialize/
   Deserialize::deserialize(deserializer)
+}
+
+/// json object inner Phrase
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Mora {
+  /// consonant (allow null)
+  #[serde(deserialize_with = "deserialize_null")]
+  pub consonant: Option<String>,
+  /// consonant_length (allow null)
+  #[serde(deserialize_with = "deserialize_null")]
+  pub consonant_length: Option<f64>,
+  /// pitch
+  pub pitch: f64,
+  /// text
+  pub text: String,
+  /// vowel
+  pub vowel: String,
+  /// vowel_length
+  pub vowel_length: f64
+}
+
+/// json object inner Phrases
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Phrase {
+  /// accent
+  pub accent: i32,
+  /// is_interrogative
+  pub is_interrogative: bool,
+  /// moras
+  pub moras: Vec<Mora>,
+  /// pause_mora (allow null)
+  #[serde(deserialize_with = "deserialize_null")]
+  pub pause_mora: Option<String>
 }
 
 /// json object Phrases
 #[derive(Serialize, Deserialize, Debug)]
 #[allow(non_snake_case)]
 pub struct Phrases {
+  /// accent_phrases
   pub accent_phrases: Vec<Phrase>,
+  /// intonationScale
   pub intonationScale: f64,
+  /// kana
   pub kana: String,
+  /// outputSamplingRate
   pub outputSamplingRate: i32,
+  /// outputStereo
   pub outputStereo: bool,
+  /// pitchScale
   pub pitchScale: f64,
+  /// postPhonemeLength
   pub postPhonemeLength: f64,
+  /// prePhonemeLength
   pub prePhonemeLength: f64,
+  /// speedScale
   pub speedScale: f64,
+  /// volumeScale
   pub volumeScale: f64
 }
 
 /// VOICEVOX Client
 #[derive(Debug)]
 pub struct VVClient {
+  /// host
   pub host: String,
+  /// port
   pub port: i32,
+  /// speakers
   pub speakers: Vec<Speaker>,
+  /// hm (speaker_id, (index of speakers, index of styles))
   pub hm: HashMap<i32, (usize, usize)>
 }
 
@@ -190,8 +198,13 @@ pub fn query(&self, txt: &str, id: i32) -> Result<String, Box<dyn Error>> {
 }
 
 /// audio query string to json object Phrases
-pub fn get_phrases(&self, qs: String) -> Result<Phrases, Box<dyn Error>> {
-  Ok(serde_json::from_str::<Phrases>(&qs).expect("parse error"))
+pub fn phrases(&self, qs: &String) -> Result<Phrases, Box<dyn Error>> {
+  Ok(serde_json::from_str::<Phrases>(qs).expect("parse error"))
+}
+
+/// json object Phrases to string
+pub fn phrases_to_str(&self, ps: &Phrases) -> Result<String, Box<dyn Error>> {
+  Ok(serde_json::to_string(ps)?)
 }
 
 /// synthesis
@@ -207,7 +220,7 @@ pub fn synth(&self, qs: String, id: i32) -> Result<Vec<u8>, Box<dyn Error>> {
 }
 
 /// speak
-pub fn speak(&self, dat: Vec<u8>) -> Result<(), Box<dyn Error>> {
+pub fn speak(&self, dat: Vec<u8>, sec: u64) -> Result<(), Box<dyn Error>> {
   let (_stream, stream_handle) = OutputStream::try_default()?;
 /*
   let reader = std::io::BufReader::new(
@@ -216,7 +229,7 @@ pub fn speak(&self, dat: Vec<u8>) -> Result<(), Box<dyn Error>> {
   let reader = Cursor::new(dat);
   let source = Decoder::new(reader)?;
   stream_handle.play_raw(source.convert_samples())?;
-  std::thread::sleep(std::time::Duration::from_secs(3)); // need to keep main
+  std::thread::sleep(std::time::Duration::from_secs(sec)); // need to keep main
   Ok(())
 }
 
