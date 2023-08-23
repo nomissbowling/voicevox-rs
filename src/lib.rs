@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.1")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.2")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
@@ -89,7 +89,8 @@ mod tests {
       ("春日部つむぎ", "ノーマル"),
       ("四国めたん", "ノーマル"),
       ("四国めたん", "あまあま"),
-      // ("小夜/SAYO", "ノーマル"), // must be url encoded
+      ("ずんだもん", "ノーマル"),
+      ("小夜/SAYO", "ノーマル"),
       ("猫使アル", "ノーマル"),
       ("猫使アル", "おちつき"),
       ("猫使アル", "うきうき"),

@@ -10,6 +10,7 @@ use rodio::{OutputStream, Decoder, source::Source};
 use reqwest;
 use reqwest::header::CONTENT_TYPE;
 
+use serde_urlencoded;
 use serde_json;
 use serde_derive::{Serialize, Deserialize};
 use serde::{Deserialize, Deserializer};
@@ -216,7 +217,11 @@ pub fn detail_speaker(&self, id: i32) -> (bool, String) {
 pub fn query(&self, txt: &str, id: i32) -> Result<String, Box<dyn Error>> {
   let uri = format!("http://{}:{}/{}", self.host, self.port, "audio_query");
   let cli = reqwest::blocking::Client::new();
-  let params = format!("text={}&speaker={}", txt, id); // must be url encoded
+  let t = txt.replace("/", "スラッシュ");
+  let s = format!("{}", id);
+  let m: HashMap<&str, &str> = vec![
+    ("text", t.as_str()), ("speaker", s.as_str())].into_iter().collect();
+  let params = serde_urlencoded::to_string(m)?;
   let mut resp = cli.post(format!("{}?{}", uri, params)).send()?;
   let mut buf = String::new();
   resp.read_to_string(&mut buf).expect("Failed to read response");
