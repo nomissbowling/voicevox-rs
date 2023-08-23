@@ -120,6 +120,8 @@ pub struct VVClient {
   pub port: i32,
   /// speakers
   pub speakers: Vec<Speaker>,
+  /// dct (name, index)
+  pub dct: HashMap<String, usize>,
   /// hm (speaker_id, (index of speakers, index of styles))
   pub hm: HashMap<i32, (usize, usize)>
 }
@@ -130,9 +132,12 @@ impl VVClient {
 /// constructor VOICEVOX Client
 pub fn new() -> VVClient {
   let mut vvc = VVClient{host: "127.0.0.1".to_string(), port: 50021,
-    speakers: vec![], hm: HashMap::<i32, (usize, usize)>::new() };
+    speakers: vec![],
+    dct: HashMap::<String, usize>::new(),
+    hm: HashMap::<i32, (usize, usize)>::new() };
   vvc.get_speakers().unwrap();
   for (idx, speaker) in vvc.speakers.iter().enumerate() {
+    vvc.dct.insert(speaker.name.clone(), idx);
     for (i, style) in speaker.styles.iter().enumerate() {
       vvc.hm.insert(style.id, (idx, i));
     }
@@ -162,6 +167,27 @@ pub fn display_speakers(&self) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
+/// find speaker idx
+pub fn find(&self, name: &str) -> Option<usize> {
+  match self.dct.get(name) {
+  None => None,
+  Some(idx) => Some(*idx)
+  }
+}
+
+/// find speaker id
+pub fn speaker(&self, name: &str, ss: &str) -> Option<i32> {
+  match self.find(name) {
+  None => None,
+  Some(idx) => {
+    for style in &self.speakers[idx].styles {
+      if style.name == ss { return Some(style.id) }
+    }
+    None
+  }
+  }
+}
+
 /// get speaker name
 pub fn name(&self, idx: usize) -> &String {
   &self.speakers[idx].name
@@ -172,7 +198,7 @@ pub fn style_name(&self, idx: (usize, usize)) -> &String {
   &self.speakers[idx.0].styles[idx.1].name
 }
 
-/// get style id
+/// get style id (speaker id)
 pub fn style_id(&self, idx: (usize, usize)) -> i32 {
   self.speakers[idx.0].styles[idx.1].id
 }
@@ -190,7 +216,7 @@ pub fn detail_speaker(&self, id: i32) -> (bool, String) {
 pub fn query(&self, txt: &str, id: i32) -> Result<String, Box<dyn Error>> {
   let uri = format!("http://{}:{}/{}", self.host, self.port, "audio_query");
   let cli = reqwest::blocking::Client::new();
-  let params = format!("text={}&speaker={}", txt, id);
+  let params = format!("text={}&speaker={}", txt, id); // must be url encoded
   let mut resp = cli.post(format!("{}?{}", uri, params)).send()?;
   let mut buf = String::new();
   resp.read_to_string(&mut buf).expect("Failed to read response");

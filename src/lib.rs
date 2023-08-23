@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.1")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
@@ -20,24 +20,26 @@ mod tests {
   fn check_speakers() {
     let vvc = VVClient::new();
     vvc.display_speakers().unwrap();
-    assert_eq!(vvc.name(0), "四国めたん");
-    assert_eq!(vvc.style_id((0, 1)), 0);
-    assert_eq!(vvc.style_name((0, 1)), "あまあま");
-    assert_eq!(vvc.name(1), "ずんだもん");
-    assert_eq!(vvc.style_id((1, 0)), 3);
-    assert_eq!(vvc.style_name((1, 0)), "ノーマル");
-    assert_eq!(vvc.name(17), "小夜/SAYO");
-    assert_eq!(vvc.style_id((17, 0)), 46);
-    assert_eq!(vvc.style_name((17, 0)), "ノーマル");
-    assert_eq!(vvc.detail_speaker(46),
-      (true, "46 小夜/SAYO ノーマル".to_string()));
+    let ptn: Vec<(i32, &str, usize, usize, &str)> = vec![
+      (46, "小夜/SAYO", 17, 0, "ノーマル"),
+      (0, "四国めたん", 0, 1, "あまあま"),
+      (3, "ずんだもん", 1, 0, "ノーマル")];
+    for p in ptn {
+      assert_eq!(vvc.speaker(p.1, p.4), Some(p.0));
+      assert_eq!(vvc.find(p.1), Some(p.2));
+      assert_eq!(vvc.name(p.2), p.1);
+      assert_eq!(vvc.style_id((p.2, p.3)), p.0);
+      assert_eq!(vvc.style_name((p.2, p.3)), p.4);
+      assert_eq!(vvc.detail_speaker(p.0),
+        (true, format!("{} {} {}", p.0, p.1, p.4)));
+    }
   }
 
   /// check query for VOICEVOX 0.14.7
   #[test]
   fn check_query() {
     let vvc = VVClient::new();
-    let id = 3;
+    let Some(id) = vvc.speaker("ずんだもん", "ノーマル") else { panic!("id") };
     let qs = vvc.query("ずんだもんなのだ。", id).unwrap();
     let ps = vvc.phrases(&qs).unwrap();
     // println!("{:?}", ps);
@@ -48,7 +50,7 @@ mod tests {
   #[test]
   fn check_synthesis() {
     let vvc = VVClient::new();
-    let id = 3;
+    let Some(id) = vvc.speaker("ずんだもん", "ノーマル") else { panic!("id") };
     let qs = vvc.query("ずんだもんなのだ。", id).unwrap();
     let mut ps = vvc.phrases(&qs).unwrap();
     let dat = vvc.synth(qs, id).unwrap();
@@ -76,6 +78,35 @@ mod tests {
     ps.speedScale = 1.5;
     let dat = vvc.synth(vvc.phrases_to_str(&ps).unwrap(), id).unwrap();
     assert_eq!(vvc.speak(dat, 3).unwrap(), ());
+  }
+
+  /// check characters for VOICEVOX 0.14.7
+  #[test]
+  fn check_characters() {
+    let vvc = VVClient::new();
+    let characters: Vec<(&str, &str)> = vec![
+      ("雨晴はう", "ノーマル"),
+      ("春日部つむぎ", "ノーマル"),
+      ("四国めたん", "ノーマル"),
+      ("四国めたん", "あまあま"),
+      // ("小夜/SAYO", "ノーマル"), // must be url encoded
+      ("猫使アル", "ノーマル"),
+      ("猫使アル", "おちつき"),
+      ("猫使アル", "うきうき"),
+      ("猫使ビィ", "ノーマル"),
+      ("猫使ビィ", "おちつき"),
+      ("猫使ビィ", "人見知り")];
+    for chara in characters {
+      let Some(id) = vvc.speaker(chara.0, chara.1) else { panic!("id") };
+      let qs = vvc.query(format!("{}です{}なのです",
+        chara.0, chara.1).as_str(), id).unwrap();
+      let mut ps = vvc.phrases(&qs).unwrap();
+      let dat = vvc.synth(qs, id).unwrap();
+      assert_eq!(vvc.speak(dat, 3).unwrap(), ());
+      ps.speedScale = 1.5;
+      let dat = vvc.synth(vvc.phrases_to_str(&ps).unwrap(), id).unwrap();
+      assert_eq!(vvc.speak(dat, 3).unwrap(), ());
+    }
   }
 }
 
