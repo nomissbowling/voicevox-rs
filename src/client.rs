@@ -161,12 +161,12 @@ pub fn new() -> VVClient {
       vvc.hm.insert(style.id, (idx, i));
     }
   }
-  vvc.get_words().unwrap();
+  vvc.load_words().unwrap();
   vvc
 }
 
-/// get words (called inner constructor)
-pub fn get_words(&mut self) -> Result<(), Box<dyn Error>> {
+/// load words (called inner constructor)
+pub fn load_words(&mut self) -> Result<(), Box<dyn Error>> {
   let tsv = BufReader::new(std::fs::File::open("words.tsv")?);
   let mut rdr = ReaderBuilder::new().delimiter(b'\x09').from_reader(tsv);
 /*
@@ -182,8 +182,11 @@ pub fn get_words(&mut self) -> Result<(), Box<dyn Error>> {
     let rec: Words = result?;
     self.words.insert(rec.ext, (rec.before, rec.after));
   }
-  drop(rdr);
+  Ok(())
+}
 
+/// save words
+pub fn save_words(&self) -> Result<(), Box<dyn Error>> {
   // open not create: Err(Os{code: 5, kind: PermissionDenied, message: "..."})
   let tsv = BufWriter::new(std::fs::File::create("words.tsv")?); // overwrite
   let mut wtr = WriterBuilder::new().delimiter(b'\x09').from_writer(tsv);

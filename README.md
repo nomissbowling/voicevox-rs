@@ -6,6 +6,7 @@ VOICEVOX Client library for Rust
 
 ```rust
 let vvc = VVClient::new();
+vvc.display_speakers().unwrap();
 let Some(id) = vvc.speaker("ずんだもん", "ノーマル") else { panic!("id") };
 let qs = vvc.query("ずんだもんなのだ。", id).unwrap();
 let dat = vvc.synth(qs, id).unwrap();

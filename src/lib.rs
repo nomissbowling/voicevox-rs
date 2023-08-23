@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.3")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.4")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
@@ -80,10 +80,29 @@ mod tests {
     assert_eq!(vvc.speak(dat, 3).unwrap(), ());
   }
 
+  /// check words for VOICEVOX 0.14.7
+  #[test]
+  fn check_words() {
+    let vvc = VVClient::new();
+    assert_eq!(vvc.save_words().unwrap(), ());
+    let characters: Vec<(&str, &str)> = vec![
+      ("ずんだもん", "あまあま"),
+      ("小夜/SAYO", "ノーマル")];
+    for chara in characters {
+      let Some(id) = vvc.speaker(chara.0, chara.1) else { panic!("id") };
+      // dangerous sequence * and / in the comment
+      let qs = vvc.query(format!("{} {} ＋+－-×*÷/ 🐼🐼🍞🍞🐼🍞🐼",
+        chara.0, chara.1).as_str(), id).unwrap();
+      let dat = vvc.synth(qs, id).unwrap();
+      assert_eq!(vvc.speak(dat, 10).unwrap(), ());
+    }
+  }
+
   /// check characters for VOICEVOX 0.14.7
   #[test]
   fn check_characters() {
     let vvc = VVClient::new();
+    // vvc.display_speakers().unwrap();
     let characters: Vec<(&str, &str)> = vec![
       ("雨晴はう", "ノーマル"),
       ("春日部つむぎ", "ノーマル"),
