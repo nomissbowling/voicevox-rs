@@ -2,8 +2,11 @@
 //!
 
 use std::error::Error;
-use std::io::{Cursor, Read}; // BufReader
+use std::io::{Cursor, Read, BufReader, BufWriter};
 use std::collections::HashMap;
+use std::collections::BTreeMap;
+
+use csv::{ReaderBuilder, WriterBuilder};
 
 use rodio::{OutputStream, Decoder, source::Source};
 
@@ -112,6 +115,18 @@ pub struct Phrases {
   pub volumeScale: f64
 }
 
+/// tsv object Words
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Words {
+  /// before
+  pub before: String,
+  /// after
+  pub after: String,
+  /// ext
+  #[serde(rename = "extend")]
+  pub ext: i32
+}
+
 /// VOICEVOX Client
 #[derive(Debug)]
 pub struct VVClient {
@@ -124,7 +139,9 @@ pub struct VVClient {
   /// dct (name, index)
   pub dct: HashMap<String, usize>,
   /// hm (speaker_id, (index of speakers, index of styles))
-  pub hm: HashMap<i32, (usize, usize)>
+  pub hm: HashMap<i32, (usize, usize)>,
+  /// words (String, String)
+  pub words: BTreeMap<i32, (String, String)>
 }
 
 /// VOICEVOX Client implementation
@@ -135,7 +152,8 @@ pub fn new() -> VVClient {
   let mut vvc = VVClient{host: "127.0.0.1".to_string(), port: 50021,
     speakers: vec![],
     dct: HashMap::<String, usize>::new(),
-    hm: HashMap::<i32, (usize, usize)>::new() };
+    hm: HashMap::<i32, (usize, usize)>::new(),
+    words: BTreeMap::<i32, (String, String)>::new()};
   vvc.get_speakers().unwrap();
   for (idx, speaker) in vvc.speakers.iter().enumerate() {
     vvc.dct.insert(speaker.name.clone(), idx);
@@ -143,7 +161,39 @@ pub fn new() -> VVClient {
       vvc.hm.insert(style.id, (idx, i));
     }
   }
+  vvc.get_words().unwrap();
   vvc
+}
+
+/// get words (called inner constructor)
+pub fn get_words(&mut self) -> Result<(), Box<dyn Error>> {
+  let tsv = BufReader::new(std::fs::File::open("words.tsv")?);
+  let mut rdr = ReaderBuilder::new().delimiter(b'\x09').from_reader(tsv);
+/*
+  if let Some(result) = rdr.records().next() {
+    let rec = result?;
+    assert_eq!(rec, vec!["/", "スラッシュ", "0"]); // always StringRecord
+    Ok(())
+  }else{
+    Err(From::from("expected at least one record but got none"))
+  }
+*/
+  for result in rdr.deserialize() { // rdr.records() is always StringRecord
+    let rec: Words = result?;
+    self.words.insert(rec.ext, (rec.before, rec.after));
+  }
+  drop(rdr);
+
+  // open not create: Err(Os{code: 5, kind: PermissionDenied, message: "..."})
+  let tsv = BufWriter::new(std::fs::File::create("words.tsv")?); // overwrite
+  let mut wtr = WriterBuilder::new().delimiter(b'\x09').from_writer(tsv);
+  // wtr.write_record(&["before", "after", "extend"])?; // needless
+  for (ext, (before, after)) in &self.words {
+    let rec = Words{before: before.clone(), after: after.clone(), ext: *ext};
+    wtr.serialize(rec)?;
+  }
+  wtr.flush()?;
+  Ok(())
 }
 
 /// get speakers (called inner constructor)
@@ -217,7 +267,10 @@ pub fn detail_speaker(&self, id: i32) -> (bool, String) {
 pub fn query(&self, txt: &str, id: i32) -> Result<String, Box<dyn Error>> {
   let uri = format!("http://{}:{}/{}", self.host, self.port, "audio_query");
   let cli = reqwest::blocking::Client::new();
-  let t = txt.replace("/", "スラッシュ");
+  let mut t = txt.to_string();
+  for (_ext, (before, after)) in &self.words {
+    t = t.replace(before.as_str(), after.as_str());
+  }
   let s = format!("{}", id);
   let m: HashMap<&str, &str> = vec![
     ("text", t.as_str()), ("speaker", s.as_str())].into_iter().collect();

@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.2")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.3")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
@@ -106,7 +106,7 @@ mod tests {
       assert_eq!(vvc.speak(dat, 3).unwrap(), ());
       ps.speedScale = 1.5;
       let dat = vvc.synth(vvc.phrases_to_str(&ps).unwrap(), id).unwrap();
-      assert_eq!(vvc.speak(dat, 3).unwrap(), ());
+      assert_eq!(vvc.speak(dat, 2).unwrap(), ());
     }
   }
 }
