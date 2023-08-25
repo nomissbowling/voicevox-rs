@@ -5,10 +5,14 @@ use std::error::Error;
 use std::io::{Cursor, Read, BufReader, BufWriter};
 use std::collections::HashMap;
 use std::collections::BTreeMap;
+use std::path::PathBuf;
+use std::fs;
+use std::thread;
+use std::time;
 
 use csv::{ReaderBuilder, WriterBuilder};
 
-use rodio::{OutputStream, Decoder, source::Source};
+use rodio::{Sink, OutputStream, OutputStreamHandle, Decoder, source::Source};
 
 use reqwest;
 use reqwest::header::CONTENT_TYPE;
@@ -128,7 +132,6 @@ pub struct Words {
 }
 
 /// VOICEVOX Client
-#[derive(Debug)]
 pub struct VVClient {
   /// host
   pub host: String,
@@ -141,7 +144,15 @@ pub struct VVClient {
   /// hm (speaker_id, (index of speakers, index of styles))
   pub hm: HashMap<i32, (usize, usize)>,
   /// words (String, String)
-  pub words: BTreeMap<i32, (String, String)>
+  pub words: BTreeMap<i32, (String, String)>,
+  /// words file
+  pub words_file: String,
+  /// cfg path
+  pub cfg_path: String,
+  /// stream_tpl
+  pub stream_tpl: Option<(OutputStream, OutputStreamHandle)>,
+  /// sink
+  pub sink: Option<Sink>
 }
 
 /// VOICEVOX Client implementation
@@ -153,7 +164,11 @@ pub fn new() -> VVClient {
     speakers: vec![],
     dct: HashMap::<String, usize>::new(),
     hm: HashMap::<i32, (usize, usize)>::new(),
-    words: BTreeMap::<i32, (String, String)>::new()};
+    words: BTreeMap::<i32, (String, String)>::new(),
+    words_file: "words.tsv".to_string(),
+    cfg_path: "./cfg".to_string(),
+    stream_tpl: None,
+    sink: None};
   vvc.get_speakers().unwrap();
   for (idx, speaker) in vvc.speakers.iter().enumerate() {
     vvc.dct.insert(speaker.name.clone(), idx);
@@ -162,12 +177,25 @@ pub fn new() -> VVClient {
     }
   }
   vvc.load_words().unwrap();
+  vvc.stream_tpl = Some(OutputStream::try_default().unwrap());
+  match &vvc.stream_tpl {
+  None => (),
+  Some((_stream, stream_handle)) => {
+    vvc.sink = Some(Sink::try_new(stream_handle).unwrap());
+  }
+  }
   vvc
+}
+
+/// path to words
+pub fn words_path(&self) -> Result<String, Box<dyn Error>> {
+  let bp = PathBuf::from(self.cfg_path.as_str());
+  Ok(bp.join(self.words_file.as_str()).to_str().ok_or("not path")?.to_string())
 }
 
 /// load words (called inner constructor)
 pub fn load_words(&mut self) -> Result<(), Box<dyn Error>> {
-  let tsv = BufReader::new(std::fs::File::open("words.tsv")?);
+  let tsv = BufReader::new(fs::File::open(self.words_path()?.as_str())?);
   let mut rdr = ReaderBuilder::new().delimiter(b'\x09').from_reader(tsv);
 /*
   if let Some(result) = rdr.records().next() {
@@ -188,7 +216,7 @@ pub fn load_words(&mut self) -> Result<(), Box<dyn Error>> {
 /// save words
 pub fn save_words(&self) -> Result<(), Box<dyn Error>> {
   // open not create: Err(Os{code: 5, kind: PermissionDenied, message: "..."})
-  let tsv = BufWriter::new(std::fs::File::create("words.tsv")?); // overwrite
+  let tsv = BufWriter::new(fs::File::create(self.words_path()?.as_str())?);
   let mut wtr = WriterBuilder::new().delimiter(b'\x09').from_writer(tsv);
   // wtr.write_record(&["before", "after", "extend"])?; // needless
   for (ext, (before, after)) in &self.words {
@@ -308,16 +336,34 @@ pub fn synth(&self, qs: String, id: i32) -> Result<Vec<u8>, Box<dyn Error>> {
 
 /// speak
 pub fn speak(&self, dat: Vec<u8>, sec: u64) -> Result<(), Box<dyn Error>> {
-  let (_stream, stream_handle) = OutputStream::try_default()?;
-/*
-  let reader = std::io::BufReader::new(
-    std::fs::File::open("biwa_UAC.ogg")?);
-*/
+  // let reader = BufReader::new(fs::File::open("biwa_UAC.ogg")?);
   let reader = Cursor::new(dat);
   let source = Decoder::new(reader)?;
-  stream_handle.play_raw(source.convert_samples())?;
-  std::thread::sleep(std::time::Duration::from_secs(sec)); // need to keep main
-  Ok(())
+  if sec > 0 {
+    let (_stream, stream_handle) = OutputStream::try_default()?;
+    stream_handle.play_raw(source.convert_samples())?;
+    thread::sleep(time::Duration::from_secs(sec)); // need to keep main
+    Ok(())
+  }else{
+    match &self.sink {
+    None => Err("sink is not initialized".into()),
+    Some(sink) => {
+      sink.append(source.convert_samples::<f32>());
+      Ok(())
+    }
+    }
+  }
+}
+
+/// speak_flush
+pub fn speak_flush(&self) -> Result<(), Box<dyn Error>> {
+  match &self.sink {
+  None => Err("sink is not initialized".into()),
+  Some(sink) => {
+    sink.sleep_until_end();
+    Ok(())
+  }
+  }
 }
 
 }

@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.2.4")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.3.5")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
@@ -8,7 +8,7 @@
 
 pub mod client;
 
-/*
+/**/
 
 /// to see printed: with option -- --show-output
 #[cfg(test)]
@@ -87,6 +87,8 @@ mod tests {
     assert_eq!(vvc.save_words().unwrap(), ());
     let characters: Vec<(&str, &str)> = vec![
       ("ずんだもん", "あまあま"),
+      ("波音リツ", "クイーン"),
+      ("波音リツ", "ノーマル"),
       ("小夜/SAYO", "ノーマル")];
     for chara in characters {
       let Some(id) = vvc.speaker(chara.0, chara.1) else { panic!("id") };
@@ -94,8 +96,9 @@ mod tests {
       let qs = vvc.query(format!("{} {} ＋+－-×*÷/ 🐼🐼🍞🍞🐼🍞🐼",
         chara.0, chara.1).as_str(), id).unwrap();
       let dat = vvc.synth(qs, id).unwrap();
-      assert_eq!(vvc.speak(dat, 10).unwrap(), ());
+      assert_eq!(vvc.speak(dat, 0).unwrap(), ());
     }
+    assert_eq!(vvc.speak_flush().unwrap(), ()); // must call it after speak 0
   }
 
   /// check characters for VOICEVOX 0.14.7
@@ -122,12 +125,13 @@ mod tests {
         chara.0, chara.1).as_str(), id).unwrap();
       let mut ps = vvc.phrases(&qs).unwrap();
       let dat = vvc.synth(qs, id).unwrap();
-      assert_eq!(vvc.speak(dat, 3).unwrap(), ());
+      assert_eq!(vvc.speak(dat, 0).unwrap(), ());
       ps.speedScale = 1.5;
       let dat = vvc.synth(vvc.phrases_to_str(&ps).unwrap(), id).unwrap();
-      assert_eq!(vvc.speak(dat, 2).unwrap(), ());
+      assert_eq!(vvc.speak(dat, 0).unwrap(), ());
     }
+    assert_eq!(vvc.speak_flush().unwrap(), ()); // must call it after speak 0
   }
 }
 
-*/
+/**/

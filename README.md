@@ -6,11 +6,11 @@ VOICEVOX Client library for Rust
 
 ```rust
 let vvc = VVClient::new();
-vvc.display_speakers().unwrap();
+vvc.display_speakers().unwrap(); // show all speaker characters
 let Some(id) = vvc.speaker("ずんだもん", "ノーマル") else { panic!("id") };
 let qs = vvc.query("ずんだもんなのだ。", id).unwrap();
 let dat = vvc.synth(qs, id).unwrap();
-vvc.speak(dat, 3).unwrap();
+vvc.speak(dat, 3).unwrap(); // always 3 seconds
 ```
 
 
@@ -35,11 +35,12 @@ for chara in characters {
     chara.0, chara.1).as_str(), id).unwrap();
   let mut ps = vvc.phrases(&qs).unwrap();
   let dat = vvc.synth(qs, id).unwrap();
-  vvc.speak(dat, 3).unwrap();
+  vvc.speak(dat, 0).unwrap(); // append to buffer
   ps.speedScale = 1.5;
   let dat = vvc.synth(vvc.phrases_to_str(&ps).unwrap(), id).unwrap();
-  vvc.speak(dat, 3).unwrap();
+  vvc.speak(dat, 0).unwrap(); // append to buffer
 }
+vvc.speak_flush().unwrap(); // must call it after speak 0
 ```
 
 
