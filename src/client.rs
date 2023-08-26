@@ -10,6 +10,7 @@ use std::fs;
 use std::thread;
 use std::time;
 
+use aho_corasick::AhoCorasick; // {AhoCorasick, PatternID};
 use csv::{ReaderBuilder, WriterBuilder};
 
 use rodio::{Sink, OutputStream, OutputStreamHandle, Decoder, source::Source};
@@ -143,6 +144,8 @@ pub struct VVClient {
   pub dct: HashMap<String, usize>,
   /// hm (speaker_id, (index of speakers, index of styles))
   pub hm: HashMap<i32, (usize, usize)>,
+  /// ac_tpl
+  pub ac_tpl: Option<(AhoCorasick, Vec<String>)>,
   /// words (String, String)
   pub words: BTreeMap<i32, (String, String)>,
   /// words file
@@ -164,6 +167,7 @@ pub fn new() -> VVClient {
     speakers: vec![],
     dct: HashMap::<String, usize>::new(),
     hm: HashMap::<i32, (usize, usize)>::new(),
+    ac_tpl: None,
     words: BTreeMap::<i32, (String, String)>::new(),
     words_file: "words.tsv".to_string(),
     cfg_path: "./cfg".to_string(),
@@ -177,6 +181,13 @@ pub fn new() -> VVClient {
     }
   }
   vvc.load_words().unwrap();
+  let mut patterns = Vec::<String>::new();
+  let mut replace_with = Vec::<String>::new();
+  for (_ext, (before, after)) in &vvc.words {
+    patterns.push(before.clone());
+    replace_with.push(after.clone());
+  }
+  vvc.ac_tpl = Some((AhoCorasick::new(patterns).unwrap(), replace_with));
   vvc.stream_tpl = Some(OutputStream::try_default().unwrap());
   match &vvc.stream_tpl {
   None => (),
@@ -298,10 +309,10 @@ pub fn detail_speaker(&self, id: i32) -> (bool, String) {
 pub fn query(&self, txt: &str, id: i32) -> Result<String, Box<dyn Error>> {
   let uri = format!("http://{}:{}/{}", self.host, self.port, "audio_query");
   let cli = reqwest::blocking::Client::new();
-  let mut t = txt.to_string();
-  for (_ext, (before, after)) in &self.words {
-    t = t.replace(before.as_str(), after.as_str());
-  }
+  let t = match &self.ac_tpl {
+  None => txt.to_string(),
+  Some((ac, replace_with)) => ac.replace_all(txt, replace_with)
+  };
   let s = format!("{}", id);
   let m: HashMap<&str, &str> = vec![
     ("text", t.as_str()), ("speaker", s.as_str())].into_iter().collect();

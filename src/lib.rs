@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.3.5")]
+#![doc(html_root_url = "https://docs.rs/voicevox-rs/0.4.6")]
 //! voicevox client library for Rust
 //!
 //! # Requirements
