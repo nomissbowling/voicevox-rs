@@ -16,7 +16,7 @@ use csv::{ReaderBuilder, WriterBuilder};
 use rodio::{Sink, OutputStream, OutputStreamHandle, Decoder, source::Source};
 
 use reqwest;
-use reqwest::header::CONTENT_TYPE;
+use reqwest::header::{CONTENT_TYPE, CONNECTION};
 
 use serde_urlencoded;
 use serde_json;
@@ -339,7 +339,9 @@ pub fn synth(&self, qs: String, id: i32) -> Result<Vec<u8>, Box<dyn Error>> {
   let cli = reqwest::blocking::Client::new();
   let params = format!("speaker={}", id);
   let mut resp = cli.post(format!("{}?{}", uri, params))
-    .header(CONTENT_TYPE, "application/json").body(qs).send()?;
+    .header(CONTENT_TYPE, "application/json")
+    .header(CONNECTION, "close")
+    .body(qs).send()?;
   let mut buf = Vec::<u8>::new();
   resp.read_to_end(&mut buf).expect("Failed to read response");
   Ok(buf)
